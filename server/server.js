@@ -126,7 +126,7 @@ app.get('/users/me', authenticate, (req, res) => {
   res.send(req.user);
 });
 
-// POST /users/login {email, password}
+// POST /users/login 
 app.post('/users/login', (req, res) => {
    let { email, password } = req.body;
    let body = { email, password };
