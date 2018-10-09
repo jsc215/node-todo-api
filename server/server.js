@@ -4,10 +4,10 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const { ObjectID } = require('mongodb');
 
-const {mongoose} = require('./db/mongoose');
-const {Todo} = require('./models/todo');
-const {User} = require('./models/user');
-const {authenticate} = require('./middleware/authenticate');
+const { mongoose } = require('./db/mongoose');
+const { Todo } = require('./models/todo');
+const { User } = require('./models/user');
+const { authenticate } = require('./middleware/authenticate');
 
 const app = express();
 const port = process.env.PORT;
@@ -21,32 +21,38 @@ app.post('/todos', authenticate, (req, res) => {
     _creator: req.user._id
   });
 
-  todo.save().then((doc) => {
-    res.send(doc);
-  }, (e) => {
-    res.status(400).send(e)
-  });
+  todo.save().then(
+    (doc) => {
+      res.send(doc);
+    },
+    (e) => {
+      res.status(400).send(e);
+    }
+  );
 });
 
 // GET all todos
 app.get('/todos', authenticate, (req, res) => {
   Todo.find({
     _creator: req.user._id
-  }).then(todos => {
-    res.send({todos})
-  }, (e) => {
-    res.status(400).send(e);
-  });
+  }).then(
+    (todos) => {
+      res.send({ todos });
+    },
+    (e) => {
+      res.status(400).send(e);
+    }
+  );
 });
 
 // GET post by id
 app.get('/todos/:id', authenticate, (req, res) => {
   let id = req.params.id;
 
-   if (!ObjectID.isValid(id)) {
-      return res.status(404).send();
+  if (!ObjectID.isValid(id)) {
+    return res.status(404).send();
   }
-  
+
   Todo.findOne({
     _id: id,
     _creator: req.user._id
@@ -55,14 +61,14 @@ app.get('/todos/:id', authenticate, (req, res) => {
       if (!todo) {
         return res.status(404).send();
       }
-      res.send({todo});
+      res.send({ todo });
     })
     .catch((e) => {
       res.status(400).send();
     });
-  });
+});
 
-  // DELETE todo
+// DELETE todo
 app.delete('/todos/:id', authenticate, (req, res) => {
   let id = req.params.id;
   if (!ObjectID.isValid(id)) {
@@ -74,45 +80,45 @@ app.delete('/todos/:id', authenticate, (req, res) => {
     _creator: req.user._id
   })
     .then((todo) => {
-      if(!todo) {
+      if (!todo) {
         return res.status(404).send();
       }
-      res.send({todo})
+      res.send({ todo });
     })
     .catch((e) => {
       res.status(400).send();
     });
-  });
+});
 
-  // UPDATE todo
-  app.patch('/todos/:id', authenticate, (req, res) => {
-    let id = req.params.id;
+// UPDATE todo
+app.patch('/todos/:id', authenticate, (req, res) => {
+  let id = req.params.id;
 
-    // let body = _.pick(req.body, ['text', 'completed']);
-    // using destructuring instead of lodash method above
-    let { text, completed } = req.body;
-    let body = { text, completed };
-    if (!ObjectID.isValid(id)) {
-      return res.status(404).send();
-    }
+  // let body = _.pick(req.body, ['text', 'completed']);
+  // using destructuring instead of lodash method above
+  let { text, completed } = req.body;
+  let body = { text, completed };
+  if (!ObjectID.isValid(id)) {
+    return res.status(404).send();
+  }
 
-    if (_.isBoolean(body.completed) && body.completed) {
-      body.completedAt = new Date().getTime();
-    } else {
-      body.completed = false;
-      body.completedAt = null;
-    }
-    Todo.findOneAndUpdate({ _id: id, _creator: req.user._id }, { $set: body }, { new: true })
-      .then(todo => {
-        if (!todo) {
-          return res.status(404).send();
-        }
-        res.send({ todo });
-      })
-      .catch(e => {
-        res.status(400).send;
-      });
-  });
+  if (_.isBoolean(body.completed) && body.completed) {
+    body.completedAt = new Date().getTime();
+  } else {
+    body.completed = false;
+    body.completedAt = null;
+  }
+  Todo.findOneAndUpdate({ _id: id, _creator: req.user._id }, { $set: body }, { new: true })
+    .then((todo) => {
+      if (!todo) {
+        return res.status(404).send();
+      }
+      res.send({ todo });
+    })
+    .catch((e) => {
+      res.status(400).send;
+    });
+});
 
 // POST /users
 app.post('/users', (req, res) => {
@@ -120,47 +126,50 @@ app.post('/users', (req, res) => {
   let body = { email, password };
   let user = new User(body);
 
-  user.save()
+  user
+    .save()
     .then(() => {
       return user.generateAuthToken();
     })
-    .then(token => {
+    .then((token) => {
       res.header('x-auth', token).send(user);
     })
-    .catch(e => {
+    .catch((e) => {
       res.status(400).send(e);
     });
-  });
-  
+});
+
 app.get('/users/me', authenticate, (req, res) => {
   res.send(req.user);
 });
 
-// POST /users/login 
+// POST /users/login
 app.post('/users/login', (req, res) => {
-   let { email, password } = req.body;
-   let body = { email, password };
+  let { email, password } = req.body;
+  let body = { email, password };
 
-  User.findByCredentials(body.email, body.password).then((user) => {
-   return user.generateAuthToken().then((token) => {
-     res.header('x-auth', token).send(user);
+  User.findByCredentials(body.email, body.password)
+    .then((user) => {
+      return user.generateAuthToken().then((token) => {
+        res.header('x-auth', token).send(user);
+      });
+    })
+    .catch((e) => {
+      res.status(400).send();
     });
-  }).catch((e) => {
-    res.status(400).send();
-  });
 });
 
 app.delete('/users/me/token', authenticate, (req, res) => {
-  req.user.removeToken(req.token).then(() => {
-    res.status(200).send();
-  }, () => {
-    res.status(400).send();
-  });
+  req.user.removeToken(req.token).then(
+    () => {
+      res.status(200).send();
+    },
+    () => {
+      res.status(400).send();
+    }
+  );
 });
 
 app.listen(port, () => {
   console.log(`Started on port ${port}`);
 });
-
-
-
